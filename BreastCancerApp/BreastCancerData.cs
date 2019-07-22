@@ -44,7 +44,8 @@ namespace BreastCancerApp
 
 
         [ColumnName("ClassCategory"), LoadColumn(10)]
-        public float ClassCategory { get; set; }
+        public int ClassCategory { get; set; }
 
+        public bool IsBenign { get; set; }
     }
 }

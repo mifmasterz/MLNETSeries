@@ -3,34 +3,41 @@ using Microsoft.ML;
 using System.IO;
 using Microsoft.ML.Trainers;
 using Microsoft.ML.Data;
-
 using System.Linq;
 using System.Collections.Generic;
 namespace BreastCancerApp
 {
     class Program
     {
+        static string TrainingFile = "breast-cancer-wisconsin.data";
         static void Main(string[] args)
         {
+            var DataDir = new DirectoryInfo(GetAbsolutePath(@"..\..\..\Data"));
             //Create MLContext
             MLContext mlContext = new MLContext();
-           
+
             //Load Data File
-            //
-            IDataView allData = mlContext.Data.LoadFromTextFile<BreastCancerData>(GetAbsolutePath("../../../breast-cancer-wisconsin.data"), separatorChar: ',', hasHeader: true);
+            var Lines = File.ReadAllLines(Path.Combine(DataDir.FullName, TrainingFile));
+            var ListData = new List<BreastCancerData>();
+            int counter = 0;
+            Lines.ToList().ForEach(x => {
+                counter++;
+                //skip header
+                if (counter > 1)
+                {
+                    var Cols = x.Split(',');
+                    ListData.Add(new BreastCancerData() { SampleNo = float.Parse(Cols[0]), ClumpThickness = float.Parse(Cols[1]), UniformityOfCellSize = float.Parse(Cols[2]), UniformityOfCellShape = float.Parse(Cols[3]), MarginalAdhesion = float.Parse(Cols[4]), SingleEpithelialCellSize = float.Parse(Cols[5]), BareNuclei = float.Parse(Cols[6] == "?" ? "0" : Cols[6]), BlandChromatin = float.Parse(Cols[7]), NormalNucleoli = float.Parse(Cols[8]), Mitoses = float.Parse(Cols[9]), ClassCategory = int.Parse(Cols[10]), IsBenign = Cols[10] == "4" ? false:true });
+                }
+            });
+
+            IDataView allData = mlContext.Data.LoadFromEnumerable<BreastCancerData>(ListData);
             
             DataOperationsCatalog.TrainTestData dataSplit = mlContext.Data.TrainTestSplit(allData, testFraction: 0.2);
             IDataView trainData = dataSplit.TrainSet;
             IDataView testData = dataSplit.TestSet;
 
-            /*
-                        var dataPrepTransform = mlContext.Transforms.Concatenate("Features", nameof(BreastCancerData.ClumpThickness), nameof(BreastCancerData.UniformityOfCellSize), nameof(BreastCancerData.UniformityOfCellShape), nameof(BreastCancerData.MarginalAdhesion), nameof(BreastCancerData.SingleEpithelialCellSize)
-                        , nameof(BreastCancerData.BareNuclei), nameof(BreastCancerData.BlandChromatin), nameof(BreastCancerData.NormalNucleoli), nameof(BreastCancerData.Mitoses)).Append(
-                            mlContext.Transforms.Conversion.MapValueToKey("Label", "ClassCategory")
-                        );
-            */
             // Data process configuration with pipeline data transformations 
-            var dataPrepTransform = mlContext.Transforms.Conversion.MapValueToKey("Label", "ClassCategory")
+            var dataPrepTransform = mlContext.Transforms.CopyColumns("Label", "IsBenign")
                                       .Append(mlContext.Transforms.IndicateMissingValues(new[] { new InputOutputColumnPair("BareNuclei_MissingIndicator", "BareNuclei") }))
                                       .Append(mlContext.Transforms.Conversion.ConvertType(new[] { new InputOutputColumnPair("BareNuclei_MissingIndicator", "BareNuclei_MissingIndicator") }))
                                       .Append(mlContext.Transforms.ReplaceMissingValues(new[] { new InputOutputColumnPair("BareNuclei", "BareNuclei") }))
@@ -38,35 +45,28 @@ namespace BreastCancerApp
                                       .Append(mlContext.Transforms.NormalizeMinMax("Features", "Features"))
                                       .AppendCacheCheckpoint(mlContext);
 
-
-
             // Create data prep transformer
             ITransformer dataPrepTransformer = dataPrepTransform.Fit(trainData);
             IDataView transformedTrainingData = dataPrepTransformer.Transform(trainData);
 
-            /* 
-            // Set the training algorithm 
-            var trainer = mlContext.MulticlassClassification.Trainers.OneVersusAll(mlContext.BinaryClassification.Trainers.SgdCalibrated(new SgdCalibratedTrainer.Options() { L2Regularization = 1E-05f, ConvergenceTolerance = 0.01f, NumberOfIterations = 5, Shuffle = false, LabelColumnName = "Label", FeatureColumnName = "Features" }), labelColumnName: "Label")
-                                       .Append(mlContext.Transforms.Conversion.MapKeyToValue("Label", "Label"));
-            var trainedModel = trainer.Fit(transformedTrainingData);
-            */
-            //var trainingPipeline = dataPrepTransform.Append(trainer);
-            var SdcaEstimator = mlContext.MulticlassClassification.Trainers.SdcaMaximumEntropy(labelColumnName: "Label", featureColumnName: "Features").Append(mlContext.Transforms.Conversion.MapKeyToValue(outputColumnName: "Label", inputColumnName: "Label"));
+            var SdcaEstimator = mlContext.BinaryClassification.Trainers.SdcaLogisticRegression(labelColumnName: "Label", featureColumnName: "Features");//.Append(mlContext.Transforms.Conversion.MapKeyToValue(outputColumnName: "Label", inputColumnName: "Label"));
 
             // Build machine learning model
             var trainedModel = dataPrepTransformer.Append(SdcaEstimator.Fit(transformedTrainingData));
 
-            // Measure trained model performance
-            // Apply data prep transformer to test data and train
+            // Apply data prep transformer to test data 
             IDataView testDataPredictions = trainedModel.Transform(testData);
 
-            // Use trained model to make inferences on test data
-            //IDataView testDataPredictions = trainedModel.Transform(transformedTestData);
-
+            // Measure trained model performance
             // Extract model metrics and get eval params
-            var trainedModelMetrics = mlContext.MulticlassClassification.Evaluate(testDataPredictions);
-            Console.WriteLine(trainedModelMetrics.ConfusionMatrix.ToString());
-            System.Console.WriteLine($"LogLoss : {trainedModelMetrics.LogLoss}, Macro Accuracy : {trainedModelMetrics.MacroAccuracy}, Micro Accuracy : {trainedModelMetrics.MicroAccuracy} ");
+            var metrics = mlContext.BinaryClassification.Evaluate(testDataPredictions);
+            Console.WriteLine();
+            Console.WriteLine("Model quality metrics evaluation");
+            Console.WriteLine("--------------------------------");
+            Console.WriteLine($"Accuracy: {metrics.Accuracy:P2}");
+            Console.WriteLine($"Auc: {metrics.AreaUnderRocCurve:P2}");
+            Console.WriteLine($"F1Score: {metrics.F1Score:P2}");
+            Console.WriteLine("=============== End of model evaluation ===============");
 
             var modelRelativePath = GetAbsolutePath("MLModel.zip");
 
@@ -75,19 +75,10 @@ namespace BreastCancerApp
 
             ITransformer mlModel = mlContext.Model.Load(GetAbsolutePath(modelRelativePath), out DataViewSchema inputSchema);
             var predEngine = mlContext.Model.CreatePredictionEngine<BreastCancerData, PredictionBreastData>(mlModel);
-            VBuffer<float> keys = default;
-
-            predEngine.OutputSchema["PredictedLabel"].GetKeyValues(ref keys);
-
-            var labelsArray = keys.DenseValues().ToArray();
-
-            Dictionary<float, string> CancerTypes = new Dictionary<float, string>();
-
-            CancerTypes.Add(2, "Jinak");
-
-            CancerTypes.Add(4, "Ganas");
 
             // Create sample data to do a single prediction with it 
+            /*
+            //jinak
             BreastCancerData sampleData = new BreastCancerData()
             {
                 SampleNo = 0,
@@ -101,15 +92,25 @@ namespace BreastCancerApp
                 NormalNucleoli = 1,
                 Mitoses = 1
                 
+            };*/
+            //ganas
+            BreastCancerData sampleData = new BreastCancerData()
+            {
+                SampleNo = 0,
+                ClumpThickness = 8,
+                UniformityOfCellSize = 10,
+                UniformityOfCellShape = 10,
+                MarginalAdhesion = 8,
+                SingleEpithelialCellSize = 7,
+                BareNuclei = 10,
+                BlandChromatin = 9,
+                NormalNucleoli = 7,
+                Mitoses = 1
+
             };
-            //8,10,10,8,7,10,9,7,1 = 4
-            //5,1,1,1,2,1,3,1,1
             // Try a single prediction
             PredictionBreastData predictionResult = predEngine.Predict(sampleData);
-            var Maks = Array.IndexOf(predictionResult.Score, predictionResult.Score.Max()); 
-            Console.WriteLine($"Single Prediction --> Predicted label and score:  {CancerTypes[labelsArray[Maks]]}: {predictionResult.Score[Maks]:0.####}");
-            //Console.WriteLine($"Single Prediction --> Actual value: {sampleData.ClassCategory} | Predicted value: {predictionResult.Prediction} | Predicted scores: [{String.Join(",", predictionResult.Score)}]");
-
+            Console.WriteLine($"Single Prediction --> Predicted:  { (predictionResult.Prediction ? "Jinak":"Ganas") }");
             Console.ReadKey();
         }
 
@@ -117,9 +118,7 @@ namespace BreastCancerApp
         {
             FileInfo _dataRoot = new FileInfo(typeof(Program).Assembly.Location);
             string assemblyFolderPath = _dataRoot.Directory.FullName;
-
             string fullPath = Path.Combine(assemblyFolderPath, relativePath);
-
             return fullPath;
         }
     }

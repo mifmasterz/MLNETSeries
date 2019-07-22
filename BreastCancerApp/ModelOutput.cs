@@ -2,11 +2,14 @@ using System;
 using Microsoft.ML.Data;
 
 namespace BreastCancerApp
-{
-    public class PredictionBreastData
+{   
+    public class PredictionBreastData : BreastCancerData
     {
-       
-        public float[] Score { get; set; }
+        [ColumnName("PredictedLabel")]
+        public bool Prediction { get; set; }
 
+        public float Probability { get; set; }
+
+        public float Score { get; set; }
     }
 }
