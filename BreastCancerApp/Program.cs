@@ -49,7 +49,7 @@ namespace BreastCancerApp
             ITransformer dataPrepTransformer = dataPrepTransform.Fit(trainData);
             IDataView transformedTrainingData = dataPrepTransformer.Transform(trainData);
 
-            var SdcaEstimator = mlContext.BinaryClassification.Trainers.SdcaLogisticRegression(labelColumnName: "Label", featureColumnName: "Features");//.Append(mlContext.Transforms.Conversion.MapKeyToValue(outputColumnName: "Label", inputColumnName: "Label"));
+            var SdcaEstimator = mlContext.BinaryClassification.Trainers.SdcaLogisticRegression(labelColumnName: "Label", featureColumnName: "Features");
 
             // Build machine learning model
             var trainedModel = dataPrepTransformer.Append(SdcaEstimator.Fit(transformedTrainingData));
@@ -74,7 +74,7 @@ namespace BreastCancerApp
             Console.WriteLine("The model is saved to {0}", GetAbsolutePath(modelRelativePath));
 
             ITransformer mlModel = mlContext.Model.Load(GetAbsolutePath(modelRelativePath), out DataViewSchema inputSchema);
-            var predEngine = mlContext.Model.CreatePredictionEngine<BreastCancerData, PredictionBreastData>(mlModel);
+            var predEngine = mlContext.Model.CreatePredictionEngine<BreastCancerData, PredictionBreastCancerData>(mlModel);
 
             // Create sample data to do a single prediction with it 
             /*
@@ -109,7 +109,7 @@ namespace BreastCancerApp
 
             };
             // Try a single prediction
-            PredictionBreastData predictionResult = predEngine.Predict(sampleData);
+            PredictionBreastCancerData predictionResult = predEngine.Predict(sampleData);
             Console.WriteLine($"Single Prediction --> Predicted:  { (predictionResult.Prediction ? "Jinak":"Ganas") }");
             Console.ReadKey();
         }

@@ -3,7 +3,7 @@ using Microsoft.ML.Data;
 
 namespace BreastCancerApp
 {   
-    public class PredictionBreastData : BreastCancerData
+    public class PredictionBreastCancerData : BreastCancerData
     {
         [ColumnName("PredictedLabel")]
         public bool Prediction { get; set; }
