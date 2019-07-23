@@ -16,7 +16,6 @@ namespace SeedsApp
 
             //Load Data File
             IDataView trainData = mlContext.Data.LoadFromTextFile<SeedData>(GetAbsolutePath("../../../Data/seeds_dataset.txt"), separatorChar: '\t', hasHeader: false);
-            var pre = trainData.Preview();
             
             //Data process configuration with pipeline data transformations 
             var dataPrepTransform = mlContext.Transforms.Conversion.MapValueToKey("Label", "Category")
@@ -34,7 +33,6 @@ namespace SeedsApp
             var trainedModel = dataPrepTransformer.Append(SdcaEstimator.Fit(transformedTrainingData));
 
             // Measure trained model performance
-            // Apply data prep transformer to test data and train
             var testData = trainedModel.Transform(transformedTrainingData);
             var testMetrics = mlContext.MulticlassClassification.Evaluate(testData);
             Console.WriteLine($"*************************************************************************************************************");
