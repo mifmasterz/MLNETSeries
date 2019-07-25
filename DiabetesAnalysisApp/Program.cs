@@ -8,25 +8,15 @@ using Microsoft.ML.Data;
 using Microsoft.ML.Trainers;
 namespace DiabetesAnalysisApp
 {
-    public class DiabetesRecord
-    {
-        public DateTime TimeStamp { set; get; }
-        public string Code { get; set; }
-        public float Data { get; set; }
-    }
-    public class DiabetesRecordPrediction
-    {
-        //vector to hold alert,score,p-value values
-        [VectorType(3)]
-        public double[] Prediction { get; set; }
-    }
+    
     class Program
     { 
         static MLContext mlContext; 
         static void Main(string[] args)
         {
+            //Data prep.
             var TrainData = new List<DiabetesRecord>();
-            var DataFolder = @"C:\Users\gravi\Downloads\diabetes-data\Diabetes-Data";
+            var DataFolder = GetAbsolutePath("../../../Data/");
             var Files = Directory.GetFiles(DataFolder, "*");
             foreach (var filePath in Files)
             {
@@ -38,30 +28,34 @@ namespace DiabetesAnalysisApp
                     var len = DateStr.Length;
                     float dataValue = 0;
                     float.TryParse(cols[3], out dataValue);
+                    //make sure this line can be processed / contains correct time-series data
                     if (len >= 15)
                     {
+                        //parse string of date to datetime
                         DateTime.TryParse(DateStr, out DateTime dt);
                         if (dt.Year > DateTime.MinValue.Year)
                             TrainData.Add(new DiabetesRecord() { TimeStamp = dt, Code = cols[2], Data = dataValue });
                     }
                 }
             }
-            HashSet<string> CodeIn = new HashSet<string> ();
-            CodeIn.Add("48");
-            CodeIn.Add("57");CodeIn.Add("58");CodeIn.Add("59");CodeIn.Add("60");CodeIn.Add("61");CodeIn.Add("62");CodeIn.Add("63");CodeIn.Add("64");
+            HashSet<string> CodeIn = new HashSet<string>();
+            //only observe data with code 48,57-61
+            CodeIn.Add("48");CodeIn.Add("57");CodeIn.Add("58");CodeIn.Add("59");CodeIn.Add("60");CodeIn.Add("61");CodeIn.Add("62");CodeIn.Add("63");CodeIn.Add("64");
             TrainData = TrainData.Where(x=> CodeIn.Contains(x.Code)).OrderBy(a => a.TimeStamp).ToList();
             Console.WriteLine($"Total data : {TrainData.Count}");
+
             // Create MLContext
             mlContext = new MLContext();
 
             //Load Data
             IDataView data = mlContext.Data.LoadFromEnumerable<DiabetesRecord>(TrainData);
             //assign the Number of records in dataset file to cosntant variable
-            const int size = 36;
+            var RowCount = data.GetRowCount();
+            int size = RowCount.HasValue? Convert.ToInt32(RowCount.Value) : 36;
             //STEP 1: Create Esimtator   
             DetectSpike(size, data);
             //To detect persistent change in the pattern
-            DetectChangepoint(size, data);
+            DetectChangepoint(10, data); //set 10 datapoints per-sliding window
 
             Console.WriteLine("=============== End of process, hit any key to finish ===============");
 
@@ -105,7 +99,7 @@ namespace DiabetesAnalysisApp
           Console.WriteLine("===============Detect Persistent changes in pattern===============");
 
           //STEP 1: Setup transformations using DetectIidChangePoint
-          var estimator = mlContext.Transforms.DetectIidChangePoint(outputColumnName: nameof(DiabetesRecordPrediction.Prediction), inputColumnName: nameof(DiabetesRecord.Data), confidence: 95, changeHistoryLength: size / 4);
+          var estimator = mlContext.Transforms.DetectIidChangePoint(outputColumnName: nameof(DiabetesRecordPrediction.Prediction), inputColumnName: nameof(DiabetesRecord.Data), confidence: 95, changeHistoryLength: size);
 
           //STEP 2:The Transformed Model.
           //In IID Change point detection, we don't need need to do training, we just need to do transformation. 
@@ -132,7 +126,7 @@ namespace DiabetesAnalysisApp
                  Console.WriteLine("{0}\t{1:0.00}\t{2:0.00}\t{3:0.00}",  p.Prediction[0], p.Prediction[1], p.Prediction[2], p.Prediction[3]);                  
              }            
           }
-          Console.WriteLine("");
+          
         }
         private static IDataView CreateEmptyDataView()
         {
@@ -140,6 +134,13 @@ namespace DiabetesAnalysisApp
             IEnumerable<DiabetesRecord> enumerableData = new List<DiabetesRecord>();
             var dv = mlContext.Data.LoadFromEnumerable(enumerableData);
             return dv;
+        }
+        public static string GetAbsolutePath(string relativePath)
+        {
+            FileInfo _dataRoot = new FileInfo(typeof(Program).Assembly.Location);
+            string assemblyFolderPath = _dataRoot.Directory.FullName;
+            string fullPath = Path.Combine(assemblyFolderPath, relativePath);
+            return fullPath;
         }
     }
 }

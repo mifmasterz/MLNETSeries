@@ -58,7 +58,6 @@ namespace IncomeClusteringApp
             ITransformer mlModel = mlContext.Model.Load(GetAbsolutePath(modelRelativePath), out DataViewSchema inputSchema);
             var predEngine = mlContext.Model.CreatePredictionEngine<IncomeData, ClusterPrediction>(mlModel);
 
-
             // Create sample data to do a single prediction with it 
             var sampleData1 = mlContext.Data.CreateEnumerable<IncomeData>(trainData, false).First();
             var sampleData2 = mlContext.Data.CreateEnumerable<IncomeData>(trainData, false).Skip(1).First();
