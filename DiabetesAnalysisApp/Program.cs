@@ -4,8 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Globalization;
 using Microsoft.ML;
-using Microsoft.ML.Data;
-using Microsoft.ML.Trainers;
+
 namespace DiabetesAnalysisApp
 {
     
