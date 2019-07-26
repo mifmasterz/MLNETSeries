@@ -10,15 +10,14 @@ namespace RestauranRecommenderApp
     {
         static void Main(string[] args)
         {
-            var filePath = GetAbsolutePath("../../../Data/IENS_USER_ITEM.csv");
-
 
             //Create MLContext
             MLContext mlContext = new MLContext();
 
+            var filePath = GetAbsolutePath("../../../Data/IENS_USER_ITEM.csv");
             //Load Data File
             IDataView trainData = mlContext.Data.LoadFromTextFile<RestaurantData>(filePath, separatorChar: ',', hasHeader: true);
-            var xx = trainData.Preview();
+            //var xx = trainData.Preview();
             //Data process configuration with pipeline data transformations 
             var dataPrepTransform = mlContext.Transforms.Conversion.MapValueToKey(outputColumnName: "RestaurantNameEncoded", inputColumnName: nameof(RestaurantData.RestaurantName))
                 .Append(mlContext.Transforms.Conversion.MapValueToKey(outputColumnName: "ReviewerEncoded", inputColumnName: nameof(RestaurantData.Reviewer)))
