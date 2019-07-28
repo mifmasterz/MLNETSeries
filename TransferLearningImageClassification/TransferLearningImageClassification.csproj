@@ -8,6 +8,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.ML" Version="1.2.0" />
     <PackageReference Include="Microsoft.ML.ImageAnalytics" Version="1.2.0" />
+    <PackageReference Include="Microsoft.ML.OnnxTransformer" Version="1.2.0" />
+    <PackageReference Include="Microsoft.ML.Scoring" Version="1.2.0" />
     <PackageReference Include="Microsoft.ML.TensorFlow" Version="1.2.0" />
   </ItemGroup>
 
