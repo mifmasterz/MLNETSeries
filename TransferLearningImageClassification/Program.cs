@@ -3,51 +3,35 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.ML;
-using Microsoft.ML.Data;
-using Microsoft.ML.Data.IO;
-using Microsoft.ML.Trainers;
-using Microsoft.ML.Transforms.Image;
 using static Microsoft.ML.Transforms.Image.ImagePixelExtractingEstimator;
-using Microsoft.ML.Transforms;
-using Microsoft.ML.Transforms.Onnx;
+
 
 namespace TransferLearningImageClassification
 {
-    public class ImagePrediction : ImageData
-    {
-        public float[] Score;
-
-        public string PredictedLabelValue;
-    }
-    public class ImageData
-    {
-        [LoadColumn(0)]
-        public string ImagePath;
-
-        [LoadColumn(1)]
-        public string Label;
-    }
     class Program
     {
-        static readonly string _assetsPath = GetAbsolutePath("../../../assets/");
+        static readonly string _assetsPath = GetAbsolutePath("../../../Data/");
         static readonly string _trainTagsTsv = Path.Combine(_assetsPath, "inputs-train", "data", "tags.tsv");
         static readonly string _predictImageListTsv = Path.Combine(_assetsPath, "inputs-predict", "data", "image_list.tsv");
         static readonly string _trainImagesFolder = Path.Combine(_assetsPath, "inputs-train", "data");
         static readonly string _predictImagesFolder = Path.Combine(_assetsPath, "inputs-predict", "data");
         static readonly string _predictSingleImage = Path.Combine(_assetsPath, "inputs-predict-single", "data", "toaster3.jpg");
-        static readonly string _inceptionPb = Path.Combine(_assetsPath, "inputs-train", "inception", "mobilenetv2-1.0.onnx");//Path.Combine(_assetsPath, "inputs-train", "inception", "tensorflow_inception_graph.pb");
-        
-        static readonly string _inputImageClassifierZip = Path.Combine(_assetsPath, "inputs-predict", "imageClassifier.zip");
+        static readonly string _modelPath = Path.Combine(_assetsPath, "inputs-train", "inception", "mobilenetv2-1.0.onnx");
+        static readonly string _modelPathTF = Path.Combine(_assetsPath, "inputs-train", "inception", "tensorflow_inception_graph.pb");
+
         static readonly string _outputImageClassifierZip = Path.Combine(_assetsPath, "outputs", "imageClassifier.zip");
         private static string LabelTokey = nameof(LabelTokey);
         private static string PredictedLabelValue = nameof(PredictedLabelValue);
         static void Main(string[] args)
         {
             MLContext mlContext = new MLContext(seed: 1);
-            var model = ReuseAndTuneInceptionModel(mlContext,_trainTagsTsv,_trainImagesFolder,_inceptionPb,_outputImageClassifierZip);
+            //use onnx model
+            var model = ReuseAndTuneModelOnnx(mlContext,_trainTagsTsv,_trainImagesFolder,_modelPath,_outputImageClassifierZip);
+            //use tensorflow model
+            //var model = ReuseAndTuneModelTensorFlow(mlContext, _trainTagsTsv, _trainImagesFolder, _modelPathTF, _outputImageClassifierZip);
             ClassifyImages(mlContext, _predictImageListTsv, _predictImagesFolder, _outputImageClassifierZip, model);
             ClassifySingleImage(mlContext, _predictSingleImage, _outputImageClassifierZip, model);
-            Console.WriteLine("Hello World!");
+            Console.ReadKey();
         }
         public static IEnumerable<ImageData> ReadFromTsv(string file, string folder)
         {
@@ -78,54 +62,40 @@ namespace TransferLearningImageClassification
             var imagePredictionData = mlContext.Data.CreateEnumerable<ImagePrediction>(predictions, false, true);
             DisplayResults(imagePredictionData);
         }
-        public static ITransformer ReuseAndTuneInceptionModel(MLContext mlContext, string dataLocation, string imagesFolder, string inputModelLocation, string outputModelLocation)
+        public static ITransformer ReuseAndTuneModelTensorFlow(MLContext mlContext, string dataLocation, string imagesFolder, string inputModelLocation, string outputModelLocation)
         {
-            /*
-             //--mobilenet--
-             var estimator = mlContext.Transforms.Conversion.MapValueToKey(outputColumnName: LabelTokey, inputColumnName: "Label").Append(mlContext.Transforms.LoadImages(outputColumnName: "input", imageFolder: _trainImagesFolder, inputColumnName: nameof(ImageData.ImagePath)))
-            .Append(mlContext.Transforms.ResizeImages(outputColumnName: "input", imageWidth: InceptionSettings.ImageWidth, imageHeight: InceptionSettings.ImageHeight, inputColumnName: "input"))
-            .Append(mlContext.Transforms.ExtractPixels(outputColumnName: "input", colorsToExtract: ColorBits.Rgb, interleavePixelColors: true, outputAsFloatArray: true, offsetImage: 128f, scaleImage: 1 / 255f))
-            //.Append(mlContext.Transforms.ExtractPixels(outputColumnName: "input", interleavePixelColors: InceptionSettings.ChannelsLast, offsetImage: InceptionSettings.Mean))
+            var data = mlContext.Data.LoadFromTextFile<ImageData>(path: dataLocation, hasHeader: false);
+            var estimator = mlContext.Transforms.Conversion.MapValueToKey(outputColumnName: LabelTokey, inputColumnName: "Label").Append(mlContext.Transforms.LoadImages(outputColumnName: "input", imageFolder: _trainImagesFolder, inputColumnName: nameof(ImageData.ImagePath)))
+            //.Append(mlContext.Transforms.ResizeImages(outputColumnName: "input", imageWidth: ModelSettings.ImageWidth, imageHeight: ModelSettings.ImageHeight, inputColumnName: "input"))
+            //.Append(mlContext.Transforms.ExtractPixels(outputColumnName: "input", colorsToExtract: ColorBits.Rgb, interleavePixelColors: true, outputAsFloatArray: true, offsetImage: 128f, scaleImage: 1 / 255f))
+            .Append(mlContext.Transforms.ResizeImages(outputColumnName: "input", imageWidth: ModelSettings.ImageWidth, imageHeight: ModelSettings.ImageHeight, inputColumnName: "input"))
+            .Append(mlContext.Transforms.ExtractPixels(outputColumnName: "input", interleavePixelColors: ModelSettings.ChannelsLast, offsetImage: ModelSettings.Mean))
             .Append(mlContext.Model.LoadTensorFlowModel(inputModelLocation)
-            .ScoreTensorFlowModel(outputColumnNames: new[] { "MobilenetV2/Predictions/Reshape_1" }, inputColumnNames: new[] { "input" }, addBatchDimensionInput: true))
-            //.ScoreTensorFlowModel(outputColumnNames: new[] { "softmax2_pre_activation" }, inputColumnNames: new[] { "input" }, addBatchDimensionInput: true))
-            .Append(mlContext.MulticlassClassification.Trainers.LbfgsMaximumEntropy(labelColumnName: LabelTokey, featureColumnName: "MobilenetV2/Predictions/Reshape_1"))//softmax2_pre_activation
+            .ScoreTensorFlowModel(outputColumnNames: new[] { "softmax2_pre_activation" }, inputColumnNames: new[] { "input" }, addBatchDimensionInput: true))
+            .Append(mlContext.MulticlassClassification.Trainers.LbfgsMaximumEntropy(labelColumnName: LabelTokey, featureColumnName: "softmax2_pre_activation"))
             .Append(mlContext.Transforms.Conversion.MapKeyToValue(PredictedLabelValue, "PredictedLabel"))
             .AppendCacheCheckpoint(mlContext);
-             */
-            /*
-             //inception
-             var estimator = mlContext.Transforms.Conversion.MapValueToKey(outputColumnName: LabelTokey, inputColumnName: "Label").Append(mlContext.Transforms.LoadImages(outputColumnName: "input", imageFolder: _trainImagesFolder, inputColumnName: nameof(ImageData.ImagePath)))
-           .Append(mlContext.Transforms.ResizeImages(outputColumnName: "input", imageWidth: InceptionSettings.ImageWidth, imageHeight: InceptionSettings.ImageHeight, inputColumnName: "input"))
-           .Append(mlContext.Transforms.ExtractPixels(outputColumnName: "input", interleavePixelColors: InceptionSettings.ChannelsLast, offsetImage: InceptionSettings.Mean))
-           .Append(mlContext.Model.LoadTensorFlowModel(inputModelLocation)
-           .ScoreTensorFlowModel(outputColumnNames: new[] { "softmax2_pre_activation" }, inputColumnNames: new[] { "input" }, addBatchDimensionInput: true))
-           .Append(mlContext.MulticlassClassification.Trainers.LbfgsMaximumEntropy(labelColumnName: LabelTokey, featureColumnName: "MobilenetV2/Predictions/Reshape_1"))//softmax2_pre_activation
-           .Append(mlContext.Transforms.Conversion.MapKeyToValue(PredictedLabelValue, "PredictedLabel"))
-           .AppendCacheCheckpoint(mlContext);
-            */
-            /*
-             //onnx
-             var data = mlContext.Data.LoadFromTextFile<ImageData>(path: dataLocation, hasHeader: false);
-            var estimator = mlContext.Transforms.Conversion.MapValueToKey(outputColumnName: LabelTokey, inputColumnName: "Label")
-            .Append(mlContext.Transforms.LoadImages(outputColumnName: "input", imageFolder: _trainImagesFolder, inputColumnName: nameof(ImageData.ImagePath)))
-            .Append(mlContext.Transforms.ResizeImages(outputColumnName: "ImageResized", imageWidth: InceptionSettings.ImageWidth, imageHeight: InceptionSettings.ImageHeight, inputColumnName: "input"))
-            .Append(mlContext.Transforms.ExtractPixels(outputColumnName:"Red", inputColumnName: "ImageResized",
-                            colorsToExtract: ColorBits.Red, offsetImage: 0.485f * 255, scaleImage: 1 / (0.229f * 255)))                    
-            .Append(mlContext.Transforms.ExtractPixels(outputColumnName:"Green", inputColumnName:"ImageResized",
-                            colorsToExtract: ColorBits.Green, offsetImage: 0.456f * 255, scaleImage: 1 / (0.224f * 255)))                    
-            .Append(mlContext.Transforms.ExtractPixels(outputColumnName:"Blue",inputColumnName: "ImageResized",
-                            colorsToExtract: ColorBits.Blue, offsetImage: 0.406f * 255, scaleImage: 1 / (0.225f * 255)))                    
-            .Append(mlContext.Transforms.Concatenate("data", "Red", "Green", "Blue"))                    
-            .Append(mlContext.Transforms.ApplyOnnxModel(modelFile: inputModelLocation,inputColumnName:"data",outputColumnName: "mobilenetv20_output_flatten0_reshape0"))
-            .Append(mlContext.MulticlassClassification.Trainers.LbfgsMaximumEntropy(labelColumnName: LabelTokey, featureColumnName: "mobilenetv20_output_flatten0_reshape0"))
-            .Append(mlContext.Transforms.Conversion.MapKeyToValue(PredictedLabelValue, "PredictedLabel"))
-            .AppendCacheCheckpoint(mlContext);
-             */
+
+            ITransformer model = estimator.Fit(data);
+            var predictions = model.Transform(data);
+            var imageData = mlContext.Data.CreateEnumerable<ImageData>(data, false, true);
+            var imagePredictionData = mlContext.Data.CreateEnumerable<ImagePrediction>(predictions, false, true);
+            DisplayResults(imagePredictionData);
+            var multiclassContext = mlContext.MulticlassClassification;
+            var metrics = multiclassContext.Evaluate(predictions, labelColumnName: LabelTokey, predictedLabelColumnName: "PredictedLabel");
+            Console.WriteLine($"LogLoss is: {metrics.LogLoss}");
+            Console.WriteLine($"PerClassLogLoss is: {String.Join(" , ", metrics.PerClassLogLoss.Select(c => c.ToString()))}");
+            mlContext.Model.Save(model, data.Schema, outputModelLocation);
+            return model;
+
+        }
+        public static ITransformer ReuseAndTuneModelOnnx(MLContext mlContext, string dataLocation, string imagesFolder, string inputModelLocation, string outputModelLocation)
+        {
+           
             var data = mlContext.Data.LoadFromTextFile<ImageData>(path: dataLocation, hasHeader: false);
             var estimator = mlContext.Transforms.Conversion.MapValueToKey(outputColumnName: LabelTokey, inputColumnName: "Label")
             .Append(mlContext.Transforms.LoadImages(outputColumnName: "input", imageFolder: _trainImagesFolder, inputColumnName: nameof(ImageData.ImagePath)))
-            .Append(mlContext.Transforms.ResizeImages(outputColumnName: "ImageResized", imageWidth: InceptionSettings.ImageWidth, imageHeight: InceptionSettings.ImageHeight, inputColumnName: "input"))
+            .Append(mlContext.Transforms.ResizeImages(outputColumnName: "ImageResized", imageWidth: ModelSettings.ImageWidth, imageHeight: ModelSettings.ImageHeight, inputColumnName: "input"))
             .Append(mlContext.Transforms.ExtractPixels(outputColumnName:"Red", inputColumnName: "ImageResized",
                             colorsToExtract: ColorBits.Red, offsetImage: 0.485f * 255, scaleImage: 1 / (0.229f * 255)))                    
             .Append(mlContext.Transforms.ExtractPixels(outputColumnName:"Green", inputColumnName:"ImageResized",
@@ -164,7 +134,7 @@ namespace TransferLearningImageClassification
             string fullPath = Path.Combine(assemblyFolderPath, relativePath);
             return fullPath;
         }
-        private struct InceptionSettings
+        private struct ModelSettings
         {
             public const int ImageHeight = 224;
             public const int ImageWidth = 224;
