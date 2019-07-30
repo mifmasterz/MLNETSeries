@@ -42,7 +42,7 @@ namespace AirBnBApp
             //Data process configuration with pipeline data transformations 
             var dataPrepTransform = mlContext.Transforms.Categorical.OneHotEncoding(outputColumnName: "neighbourhood_encoded", inputColumnName: "neighbourhood")
                 .Append(mlContext.Transforms.Categorical.OneHotEncoding(outputColumnName: "room_type_encoded", inputColumnName: "room_type"))
-                .Append(mlContext.Transforms.Concatenate("Features", new[] { "neighbourhood_encoded", "room_type_encoded", "price", "minimum_nights", "availability_365" }))
+                .Append(mlContext.Transforms.Concatenate("Features", new[] { "neighbourhood_encoded", "room_type_encoded", "price", "minimum_nights", "availability_365", "latitude","longitude" }))
                 .AppendCacheCheckpoint(mlContext);
 
             // Create data transformer

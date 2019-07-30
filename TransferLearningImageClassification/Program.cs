@@ -33,16 +33,7 @@ namespace TransferLearningImageClassification
             ClassifySingleImage(mlContext, _predictSingleImage, _outputImageClassifierZip, model);
             Console.ReadKey();
         }
-        public static IEnumerable<ImageData> ReadFromTsv(string file, string folder)
-        {
-            return File.ReadAllLines(file)
-             .Select(line => line.Split('\t'))
-             .Select(line => new ImageData()
-             {
-                 ImagePath = Path.Combine(folder, line[0])
-             });
-
-        }
+        
         public static void ClassifySingleImage(MLContext mlContext, string imagePath, string outputModelLocation, ITransformer model)
         {
             var imageData = new ImageData()
@@ -66,8 +57,6 @@ namespace TransferLearningImageClassification
         {
             var data = mlContext.Data.LoadFromTextFile<ImageData>(path: dataLocation, hasHeader: false);
             var estimator = mlContext.Transforms.Conversion.MapValueToKey(outputColumnName: LabelTokey, inputColumnName: "Label").Append(mlContext.Transforms.LoadImages(outputColumnName: "input", imageFolder: _trainImagesFolder, inputColumnName: nameof(ImageData.ImagePath)))
-            //.Append(mlContext.Transforms.ResizeImages(outputColumnName: "input", imageWidth: ModelSettings.ImageWidth, imageHeight: ModelSettings.ImageHeight, inputColumnName: "input"))
-            //.Append(mlContext.Transforms.ExtractPixels(outputColumnName: "input", colorsToExtract: ColorBits.Rgb, interleavePixelColors: true, outputAsFloatArray: true, offsetImage: 128f, scaleImage: 1 / 255f))
             .Append(mlContext.Transforms.ResizeImages(outputColumnName: "input", imageWidth: ModelSettings.ImageWidth, imageHeight: ModelSettings.ImageHeight, inputColumnName: "input"))
             .Append(mlContext.Transforms.ExtractPixels(outputColumnName: "input", interleavePixelColors: ModelSettings.ChannelsLast, offsetImage: ModelSettings.Mean))
             .Append(mlContext.Model.LoadTensorFlowModel(inputModelLocation)
@@ -133,6 +122,16 @@ namespace TransferLearningImageClassification
             string assemblyFolderPath = _dataRoot.Directory.FullName;
             string fullPath = Path.Combine(assemblyFolderPath, relativePath);
             return fullPath;
+        }
+        public static IEnumerable<ImageData> ReadFromTsv(string file, string folder)
+        {
+            return File.ReadAllLines(file)
+             .Select(line => line.Split('\t'))
+             .Select(line => new ImageData()
+             {
+                 ImagePath = Path.Combine(folder, line[0])
+             });
+
         }
         private struct ModelSettings
         {
