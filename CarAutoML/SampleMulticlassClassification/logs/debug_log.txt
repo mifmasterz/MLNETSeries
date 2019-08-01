@@ -1,0 +1,50 @@
+Inferring Columns ...
+An Error occured during inferring columns
+Label column index (7) is >= than # of inferred columns (7).
+Parameter name: LabelColumnIndex
+System.ArgumentOutOfRangeException: Label column index (7) is >= than # of inferred columns (7).
+Parameter name: LabelColumnIndex
+   at Microsoft.ML.AutoML.ColumnTypeInference.GetAndValidateLabelColumn(Arguments args, IntermediateColumn[] cols)
+   at Microsoft.ML.AutoML.ColumnTypeInference.InferTextFileColumnTypesCore(MLContext context, IMultiStreamSource fileSource, Arguments args)
+   at Microsoft.ML.AutoML.ColumnInferenceApi.InferColumnTypes(MLContext context, TextFileSample sample, ColumnSplitResult splitInference, Boolean hasHeader, Nullable`1 labelColumnIndex, String label)
+   at Microsoft.ML.AutoML.ColumnInferenceApi.InferColumns(MLContext context, String path, UInt32 labelColumnIndex, Boolean hasHeader, Nullable`1 separatorChar, Nullable`1 allowQuotedStrings, Nullable`1 supportSparse, Boolean trimWhitespace, Boolean groupColumns)
+   at Microsoft.ML.CLI.CodeGenerator.AutoMLEngine.InferColumns(MLContext context, ColumnInformation columnInformation)
+   at Microsoft.ML.CLI.CodeGenerator.CodeGenerationHelper.GenerateCode()
+   at Microsoft.ML.CLI.Program.<>c__DisplayClass1_0.<Main>b__0(NewCommandSettings options)
+Please see the log file for more info.
+Exiting ...
+Inferring Columns ...
+Creating Data loader ...
+Loading data ...
+Exploring multiple ML algorithms and settings to find you the best model for ML task: multiclass-classification
+For further learning check: https://aka.ms/mlnet-cli
+|     Trainer                              MicroAccuracy  MacroAccuracy  Duration #Iteration                     |
+[Source=AutoML, Kind=Trace] Channel started
+[Source=AutoML, Kind=Trace] Evaluating pipeline xf=ValueToKeyMapping{ col=Label:Label} xf=OneHotEncoding{ col=col0:col0 col=col1:col1 col=col2:col2 col=col3:col3 col=col4:col4 col=col5:col5} xf=ColumnConcatenating{ col=Features:col0,col1,col2,col3,col4,col5} xf=Normalizing{ col=Features:Features} tr=AveragedPerceptronOva{} xf=KeyToValueMapping{ col=PredictedLabel:PredictedLabel} cache=+
+[Source=AutoML, Kind=Trace] 1	0.893233219419988	00:00:03.1586558	xf=ValueToKeyMapping{ col=Label:Label} xf=OneHotEncoding{ col=col0:col0 col=col1:col1 col=col2:col2 col=col3:col3 col=col4:col4 col=col5:col5} xf=ColumnConcatenating{ col=Features:col0,col1,col2,col3,col4,col5} xf=Normalizing{ col=Features:Features} tr=AveragedPerceptronOva{} xf=KeyToValueMapping{ col=PredictedLabel:PredictedLabel} cache=+
+|1    AveragedPerceptronOva                       0.8941         0.7594       3.2          0                     |
+[Source=AutoML, Kind=Trace] Evaluating pipeline xf=ValueToKeyMapping{ col=Label:Label} xf=OneHotEncoding{ col=col0:col0 col=col1:col1 col=col2:col2 col=col3:col3 col=col4:col4 col=col5:col5} xf=ColumnConcatenating{ col=Features:col0,col1,col2,col3,col4,col5} xf=Normalizing{ col=Features:Features} tr=SdcaMaximumEntropyMulti{} xf=KeyToValueMapping{ col=PredictedLabel:PredictedLabel} cache=+
+[Source=AutoML, Kind=Trace] 2	0.929188174645805	00:00:05.2506441	xf=ValueToKeyMapping{ col=Label:Label} xf=OneHotEncoding{ col=col0:col0 col=col1:col1 col=col2:col2 col=col3:col3 col=col4:col4 col=col5:col5} xf=ColumnConcatenating{ col=Features:col0,col1,col2,col3,col4,col5} xf=Normalizing{ col=Features:Features} tr=SdcaMaximumEntropyMulti{} xf=KeyToValueMapping{ col=PredictedLabel:PredictedLabel} cache=+
+|2    SdcaMaximumEntropyMulti                     0.9310         0.8605       5.3          0                     |
+[Source=AutoML, Kind=Trace] Evaluating pipeline xf=ValueToKeyMapping{ col=Label:Label} xf=OneHotEncoding{ col=col0:col0 col=col1:col1 col=col2:col2 col=col3:col3 col=col4:col4 col=col5:col5} xf=ColumnConcatenating{ col=Features:col0,col1,col2,col3,col4,col5} tr=LightGbmMulti{} xf=KeyToValueMapping{ col=PredictedLabel:PredictedLabel} cache=-
+
+===============================================Experiment Results=================================================
+------------------------------------------------------------------------------------------------------------------
+|                                                     Summary                                                    |
+------------------------------------------------------------------------------------------------------------------
+|ML Task: multiclass-classification                                                                              |
+|Dataset: car.data                                                                                               |
+|Label : Label                                                                                                   |
+|Total experiment time : 10.39 Secs                                                                              |
+|Total number of models explored: 2                                                                              |
+------------------------------------------------------------------------------------------------------------------
+|                                              Top 2 models explored                                             |
+------------------------------------------------------------------------------------------------------------------
+|     Trainer                              MicroAccuracy  MacroAccuracy  Duration #Iteration                     |
+|1    SdcaMaximumEntropyMulti                     0.9310         0.8605       5.3          2                     |
+|2    AveragedPerceptronOva                       0.8941         0.7594       3.2          1                     |
+------------------------------------------------------------------------------------------------------------------
+Generated trained model for consumption: C:\experiment\MLNETSeries\CarAutoML\SampleMulticlassClassification\SampleMulticlassClassification.Model\MLModel.zip
+Retrieving best pipeline ...
+Generated C# code for model consumption: C:\experiment\MLNETSeries\CarAutoML\SampleMulticlassClassification\SampleMulticlassClassification.ConsoleApp
+Check out log file for more information: C:\experiment\MLNETSeries\CarAutoML\SampleMulticlassClassification\logs\debug_log.txt
