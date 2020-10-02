@@ -34,6 +34,7 @@ namespace TrafficVolumeAutoMLAPI
             Console.WriteLine($"Best Algorthm: {experimentResult.BestRun.TrainerName}");
             Console.WriteLine($"R-Squared: {metrics.RSquared:0.##}");
             Console.WriteLine($"Root Mean Squared Error: {metrics.RootMeanSquaredError:0.##}");
+
             Console.ReadKey();
         }
 
