@@ -7,15 +7,12 @@ using System.Linq;
 using Microsoft.ML.Data;
 using Microsoft.ML;
 using Microsoft.ML.AutoML;
-//using Microsoft.ML.AutoML.Samples.DataStructures;
 
 namespace DetectWeatherAnomaly
 {
     public class AutoRanking
     {
-        private static string TrainDataPath = "<Path to your train dataset goes here>";
-        private static string TestDataPath = "<Path to your test dataset goes here>";
-        private static string ModelPath = @"<Desired model output directory goes here>\Model.zip";
+        private static string ModelPath = "Model.zip";
         private static string LabelColumnName = "Label";
         private static string GroupColumnName = "GroupId";
         private static uint ExperimentTime = 60;
@@ -25,8 +22,8 @@ namespace DetectWeatherAnomaly
             MLContext mlContext = new MLContext();
 
             // STEP 1: Load data
-            IDataView trainDataView = mlContext.Data.LoadFromTextFile<SearchData>(TrainDataPath, hasHeader: true, separatorChar: ',');
-            IDataView testDataView = mlContext.Data.LoadFromTextFile<SearchData>(TestDataPath, hasHeader: true, separatorChar: ',');
+            IDataView trainDataView = mlContext.Data.LoadFromEnumerable<SearchData>(GenerateData());
+            IDataView testDataView = mlContext.Data.LoadFromEnumerable <SearchData>(GenerateData(10));
 
             // STEP 2: Run AutoML experiment
             Console.WriteLine($"Running AutoML recommendation experiment for {ExperimentTime} seconds...");
@@ -88,6 +85,24 @@ namespace DetectWeatherAnomaly
             Console.WriteLine($"DiscountedCumulativeGains: {metrics.DiscountedCumulativeGains}");
 
         }
+
+        public static List<SearchData> GenerateData(int count=100)
+        {
+            var data = new List<SearchData>();
+            var rnd = new Random();
+            for(int i = 0; i < count; i++)
+            {
+                var newNode = new SearchData()
+                {
+                    GroupId = rnd.Next(1, 5).ToString(), //nama yang di rating
+                    Label = rnd.Next(0,4), //rating 0-4
+                    Features = rnd.Next(1,100) //user atau identitas
+
+                };
+                data.Add(newNode);
+            }
+            return data;
+        }
     }
     public class SearchDataPrediction
     {
@@ -107,4 +122,6 @@ namespace DetectWeatherAnomaly
         [LoadColumn(2)]
         public float Label;
     }
+
+    
 }

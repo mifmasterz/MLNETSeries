@@ -10,7 +10,16 @@ namespace DetectWeatherAnomaly
     {
         static void Main(string[] args)
         {
-           
+            AutoRanking.Run();
+            Console.ReadLine();
+            return;
+
+            DetectSeasonality.Example();
+            Console.ReadLine();
+            return;
+            RootCauseDetect.Example();
+            Console.ReadLine();
+            return;
             // Create a new ML context, for ML.NET operations. It can be used for
             // exception tracking and logging, 
             // as well as the source of randomness.
